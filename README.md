@@ -1,6 +1,4 @@
-# VisuaSurface-Iot
-
-# Transmissor Braille com ESP32 e Bluetooth Low Energy
+# VisuaSurface-Iot: Transmissor Braille com ESP32 e Bluetooth Low Energy
 
 Projeto de um sistema transmissor de caracteres em Braille utilizando um microcontrolador ESP32 e comunicação Bluetooth Low Energy (BLE).
 
