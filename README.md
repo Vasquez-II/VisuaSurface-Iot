@@ -2,7 +2,7 @@
 
 Projeto de um sistema transmissor de caracteres em Braille utilizando um microcontrolador ESP32 e comunicação Bluetooth Low Energy (BLE).
 
-O sistema recebe uma mensagem enviada por um dispositivo móvel, converte cada letra para sua representação em Braille e aciona seis saídas digitais correspondentes aos seis pontos de uma célula Braille.
+O sistema recebe uma mensagem enviada por um dispositivo móvel, converte cada letra para sua representação em Braille e aciona seis saídas digitais correspondentes aos seis pontos de uma célula Braille em tempo real, permitindo a leitura tátil de mensagens.
 
 ## Objetivo
 
@@ -31,7 +31,9 @@ ESP32_Braille_BLE
 
 Após a conexão com um aplicativo compatível com BLE, o usuário pode enviar uma palavra ou mensagem.
 
-Cada caractere é convertido para uma combinação de seis valores binários. Esses valores controlam os seis pinos associados aos pontos da célula Braille.
+Firmware traduz cada caractere para uma combinação de seis valores binários. Esses valores controlam os seis pinos associados aos pontos da célula Braille.
+
+Os 6 pinos de saída acionam os atuadores físicos (solenoides, servo motores, etc.) da célula Braille
 
 Cada letra permanece sendo exibida durante 2 segundos. Em seguida, a célula é limpa por 500 milissegundos antes da apresentação do próximo caractere.
 
@@ -46,9 +48,19 @@ Cada letra permanece sendo exibida durante 2 segundos. Em seguida, a célula é 
 | Ponto 5                 |            15 |
 | Ponto 6                 |            16 |
 
+* Observação: Os pinos podem ser alterados no array pinosBraille[] no início do código.
+
+## Componentes Necessários
+
+
+* ESP32 (qualquer variante com suporte a BLE)
+* 6 atuadores (solenoides, micro servo motores ou similar)
+* Drivers de potência adequados para os atuadores escolhidos
+* Estrutura física da célula Braille
+
 ## Comunicação BLE
 
-O projeto utiliza os seguintes UUIDs:
+O projeto utiliza o protocolo Nordic UART Service (NUS), padrão amplamente compatível com apps de terminal BLE, e os seguintes UUIDs:
 
 ```text
 Service UUID:
@@ -59,6 +71,19 @@ Characteristic RX UUID:
 ```
 
 A característica RX possui permissão de escrita e é responsável por receber as mensagens enviadas pelo dispositivo conectado.
+
+## Apps compatíveis para teste
+
+* nRF Connect (Nordic Semiconductor) — Android / iOS
+* Serial Bluetooth Terminal — Android
+* LightBlue — iOS / Android
+
+## Bibliotecas necessárias (Arduino IDE)
+
+* BLEDevice.h
+* BLEServer.h
+* BLEUtils.h
+* BLE2902.h
 
 ## Como executar o projeto
 
@@ -77,13 +102,14 @@ transmissor_braille_esp32.ino
 8. Conecte-se ao dispositivo `ESP32_Braille_BLE` utilizando um aplicativo compatível com BLE.
 9. Envie uma palavra para visualizar sua tradução sequencial em Braille.
 
-## Limitações atuais
+## Comportamento
 
-* O sistema reconhece apenas letras de `A` a `Z`.
-* Números, acentos e símbolos ainda não possuem representação implementada.
-* As letras são apresentadas individualmente em uma única célula Braille.
-* O tempo de apresentação dos caracteres é fixo.
-
+* Letras (a–z): Convertidas para Braille e exibidas por 2 segundos
+* Letras maiúsculas: Convertidas automaticamente para minúsculas
+* Espaço: Célula apagada por 2 segundos
+* Caracteres especiais / acentos: Célula apagada (não mapeados)
+* Após cada letra: Pausa de 0,5 segundos com a célula zerada
+* Reconexão: O BLE reinicia o anúncio automaticamente após desconexão
 
 ## Autores
 
