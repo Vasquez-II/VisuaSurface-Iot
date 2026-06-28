@@ -1,0 +1,182 @@
+// ============================================================
+//   TRANSMISSOR BRAILLE — ESP32 com Bluetooth LE (BLE)
+// ============================================================
+
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// --- CONFIGURAÇÕES DE HARDWARE ---
+const int pinosBraille[6] = {4, 5, 6, 7, 15, 16};
+
+// --- DICIONÁRIO BRAILLE (Invertido/Corrigido) ---
+const byte alfabetoBraille[26][6] = {
+  {0, 1, 1, 1, 1, 1}, // a
+  {0, 0, 1, 1, 1, 1}, // b
+  {0, 1, 1, 0, 1, 1}, // c
+  {0, 1, 1, 0, 0, 1}, // d
+  {0, 1, 1, 1, 0, 1}, // e
+  {0, 0, 1, 0, 1, 1}, // f
+  {0, 0, 1, 0, 0, 1}, // g
+  {0, 0, 1, 1, 0, 1}, // h
+  {1, 0, 1, 0, 1, 1}, // i
+  {1, 0, 1, 0, 0, 1}, // j
+  {0, 1, 0, 1, 1, 1}, // k
+  {0, 0, 0, 1, 1, 1}, // l
+  {0, 1, 0, 0, 1, 1}, // m
+  {0, 1, 0, 0, 0, 1}, // n
+  {0, 1, 0, 1, 0, 1}, // o
+  {0, 0, 0, 0, 1, 1}, // p
+  {0, 0, 0, 0, 0, 1}, // q
+  {0, 0, 0, 1, 0, 1}, // r
+  {1, 0, 0, 0, 1, 1}, // s
+  {1, 0, 0, 0, 0, 1}, // t
+  {0, 1, 0, 1, 1, 0}, // u
+  {0, 0, 0, 1, 1, 0}, // v
+  {1, 0, 1, 0, 0, 0}, // w
+  {0, 1, 0, 0, 1, 0}, // x
+  {0, 1, 0, 0, 0, 0}, // y
+  {0, 1, 0, 1, 0, 0}  // z
+};
+
+// --- VARIÁVEIS DO BLE ---
+BLEServer *pServer = NULL;
+bool deviceConnected = false;
+String mensagemPendente = "";
+bool temMensagem = false;
+
+// UUIDs padrão para comunicação tipo "Terminal/UART" via BLE
+#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" 
+#define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+
+// Declaração de funções
+void traduzirParaBraille(String texto);
+void exibirLetra(char letra);
+void limparCelula();
+
+// --- CLASSES DE CONTROLE DO BLE ---
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      Serial.println("Celular Conectado via BLE!");
+    };
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+      Serial.println("Celular Desconectado.");
+      // Reinicia o anúncio do BLE para poder conectar de novo
+      BLEDevice::startAdvertising(); 
+    }
+};
+
+class MyCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      // Quando o celular envia uma mensagem, cai aqui
+      String rxValue = pCharacteristic->getValue().c_str();
+      
+      if (rxValue.length() > 0) {
+        rxValue.trim(); // Limpa espaços extras ou quebras de linha invisíveis
+        mensagemPendente = rxValue;
+        temMensagem = true; // Avisa o loop principal que tem trabalho a fazer
+      }
+    }
+};
+
+//   SETUP E LOOP
+
+void setup() {
+  Serial.begin(115200);
+
+  // 1. Configura os pinos físicos
+  for (int i = 0; i < 6; i++) {
+    pinMode(pinosBraille[i], OUTPUT);
+    digitalWrite(pinosBraille[i], LOW); 
+  }
+  
+  // 2. Inicia o dispositivo BLE
+  Serial.println("Iniciando Bluetooth LE...");
+  BLEDevice::init("ESP32_Braille_BLE"); // Nome que vai aparecer no seu app
+  
+  // 3. Cria o Servidor BLE
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // 4. Cria o Serviço BLE (Usando UUID de UART padrão)
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // 5. Cria a Característica RX (Para Receber dados do celular)
+  BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(
+                       CHARACTERISTIC_UUID_RX,
+                       BLECharacteristic::PROPERTY_WRITE
+                     );
+  pRxCharacteristic->setCallbacks(new MyCallbacks());
+
+  // 6. Inicia o serviço e começa a anunciar
+  pService->start();
+  pServer->getAdvertising()->start();
+  
+  Serial.println("Sistema Pronto! Aguardando conexao BLE...");
+}
+
+void loop() {
+  // Se recebemos uma mensagem do app, processamos aqui
+  if (temMensagem) {
+    Serial.print("Mensagem recebida do App: ");
+    Serial.println(mensagemPendente);
+    
+    traduzirParaBraille(mensagemPendente);
+    
+    // Limpa a flag depois de terminar
+    temMensagem = false;
+    mensagemPendente = "";
+    Serial.println("Traducao concluida. Aguardando nova mensagem...");
+  }
+  
+  delay(20);
+}
+
+//   FUNÇÕES AUXILIARES 
+
+void traduzirParaBraille(String texto) {
+  for (int i = 0; i < texto.length(); i++) {
+    char caractereAtual = texto.charAt(i);
+    
+    if (caractereAtual == ' ') {
+      Serial.println("[ ESPACO ]");
+      limparCelula();
+      delay(2000); 
+    } else {
+      exibirLetra(caractereAtual);
+      delay(2000); 
+    }
+    
+    limparCelula();
+    delay(500); 
+  }
+}
+
+void exibirLetra(char letra) {
+  letra = tolower(letra); 
+  
+  if (letra >= 'a' && letra <= 'z') {
+    int indice = letra - 'a'; 
+    Serial.print("Letra: ");
+    Serial.println(letra);
+
+    for (int ponto = 0; ponto < 6; ponto++) {
+      if (alfabetoBraille[indice][ponto] == 1) {
+        digitalWrite(pinosBraille[ponto], HIGH); 
+      } else {
+        digitalWrite(pinosBraille[ponto], LOW);  
+      }
+    }
+  } else {
+    limparCelula(); 
+  }
+}
+
+void limparCelula() {
+  for (int i = 0; i < 6; i++) {
+    digitalWrite(pinosBraille[i], LOW);
+  }
+}
