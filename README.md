@@ -77,14 +77,6 @@ transmissor_braille_esp32.ino
 8. Conecte-se ao dispositivo `ESP32_Braille_BLE` utilizando um aplicativo compatível com BLE.
 9. Envie uma palavra para visualizar sua tradução sequencial em Braille.
 
-## Estrutura do projeto
-
-```text
-transmissor_braille_esp32/
-├── transmissor_braille_esp32.ino
-└── README.md
-```
-
 ## Limitações atuais
 
 * O sistema reconhece apenas letras de `A` a `Z`.
