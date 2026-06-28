@@ -84,18 +84,11 @@ transmissor_braille_esp32.ino
 * As letras são apresentadas individualmente em uma única célula Braille.
 * O tempo de apresentação dos caracteres é fixo.
 
-## Possíveis melhorias
-
-* adicionar suporte a números e caracteres acentuados;
-* permitir a configuração do tempo de exibição;
-* desenvolver um aplicativo próprio para envio das mensagens;
-* adicionar múltiplas células Braille;
-* implementar confirmação de recebimento por BLE;
-* incluir controle de velocidade e pausa.
 
 ## Autores
 
 Projeto desenvolvido por:
 
-* **Gabi**
-* **Nome do outro integrante**
+* **Beatriz Castro**
+* **Daniela Castro**
+* **Gabriela Vasquez**
